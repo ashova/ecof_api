@@ -2,10 +2,17 @@
 
 namespace App\Helpers;
 
+use PDO;
+use PDOException;
+use PDOStatement;
+
 class Database
 {
-    private $pdo;
+    private PDO $pdo;
 
+    /**
+     * Initializes the PDO instance for database interactions.
+     */
     public function __construct()
     {
         $host = getenv('DB_HOST') ?: 'db';
@@ -13,24 +20,65 @@ class Database
         $username = getenv('DB_USER') ?: 'root';
         $password = getenv('DB_PASS') ?: 'root';
 
-        $this->pdo = new \PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+        try {
+            $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (PDOException $e) {
+            error_log('Database connection error: ' . $e->getMessage());
+            throw new \RuntimeException('Database connection error.');
+        }
     }
 
-    public function getUsers()
+    /**
+     * Execute a SQL query with parameters.
+     *
+     * @param string $sql
+     * @param array $params
+     * @return PDOStatement
+     * @throws PDOException
+     */
+    public function query(string $sql, array $params = []): \PDOStatement
     {
-        $stmt = $this->pdo->query('SELECT name, email FROM users');
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
     }
 
-    public function insertUser($name, $email)
+    /**
+     * Fetch all results from a statement as an associative array.
+     *
+     * @param \PDOStatement $stmt
+     * @return array
+     */
+    public function fetchAll(\PDOStatement $stmt): array
     {
-        $stmt = $this->pdo->prepare('INSERT INTO users (name, email) VALUES (:name, :email)');
-        $stmt->execute(['name' => $name, 'email' => $email]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function insertSensorReading($sensor_uuid, $temperature)
+    /**
+     * Fetch a single result from a statement as an associative array.
+     *
+     * @param \PDOStatement $stmt
+     * @return array|null
+     */
+    public function fetch(\PDOStatement $stmt): ?array
     {
-        $stmt = $this->pdo->prepare('INSERT INTO sensor_readings (sensor_uuid, temperature) VALUES (:sensor_uuid, :temperature)');
-        $stmt->execute(['sensor_uuid' => $sensor_uuid, 'temperature' => $temperature]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Insert data into a specified table.
+     *
+     * @param string $table
+     * @param array $data
+     * @throws PDOException
+     */
+    public function insert(string $table, array $data): void
+    {
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+
+        $stmt = $this->pdo->prepare("INSERT INTO $table ($columns) VALUES ($placeholders)");
+        $stmt->execute(array_values($data));
     }
 }
