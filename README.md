@@ -13,8 +13,8 @@ This is a simple PHP application for managing data from temperature sensors. It 
 
 ### 1. Clone the repository and navigate into it
 ```bash
-git clone https://your-repository-url.git
-cd your-repository-name 
+git clone https://github.com/ashova/ecof_api
+cd ecof_api 
 ```
 
 ### 2. Build the Docker Image
